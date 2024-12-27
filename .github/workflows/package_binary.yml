@@ -1,12 +1,12 @@
-name: "Build legacy Nix package on Ubuntu"
+name: "Package the project's Linux binary"
 
 on:
   push:
-    branches-ignore:
+    branches:
       - 'main'
 
 jobs:
-  build:
+  package:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -16,4 +16,11 @@ jobs:
         uses: cachix/install-nix-action@v26
 
       - name: Building package
+        id: build
         run: nix build 
+
+      - name: Archive binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: hydractify-linux-unknown
+          path: result/bin/hydractify
