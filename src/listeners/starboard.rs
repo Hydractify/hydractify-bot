@@ -48,7 +48,7 @@ fn create_message(original_message: Message, starboard: &Starboard) -> CreateMes
         .image(image);
 
     CreateMessage::new().embed(embed).content(format!(
-        "**{}**🌟{}",
+        "**{}**🌟『{}』",
         starboard.stars,
         original_message.channel_id.mention()
     ))
@@ -85,9 +85,9 @@ pub async fn handle_reaction(
     let message = reaction.message(&ctx.http).await?;
 
     // If the author is trying to star react himself, deny it.
-    // if message.author.id == user_from_reaction.id {
-    //     return Ok(());
-    // }
+    if message.author.id == user_from_reaction.id {
+        return Ok(());
+    }
 
     // The UserID of each user that has reacted with a valid reaction.
     let mut userids: Vec<UserId> = Vec::new();
@@ -103,9 +103,7 @@ pub async fn handle_reaction(
                 .iter()
                 .filter_map(|user| {
                     // Ignore reactions from bots and the author of the message.
-                    if user.bot
-                    /*|| message.author.id == user.id*/
-                    {
+                    if user.bot || message.author.id == user.id {
                         None
                     } else {
                         Some(user.id)
@@ -120,10 +118,6 @@ pub async fn handle_reaction(
     // Remove multiple entries of the same person,
     // you can use multiple star reactions.
     userids.dedup();
-
-    if userids.len() < 3 {
-        return Ok(());
-    }
 
     // Get the message ID and turn it onto a BIGINT equivalent for the query.
     let message_id: i64 = message.id.into();
@@ -148,31 +142,30 @@ pub async fn handle_reaction(
     let guild_channels = reaction.guild_id.unwrap().channels(&ctx.http).await?;
 
     let starboard_channel = guild_channels
-        .get_key_value(&ChannelId::new(430532424280178688)) // #private-testing
-        .unwrap()
-        .1;
+        //.get_key_value(&ChannelId::new(430532424280178688)) // #private-testing
+        .get(&ChannelId::new(794949887028232192)) // #starboard
+        .unwrap();
+
+    if userids.len() < 3 {
+        // If there is an ID for it, a message was created
+        if starboard.starboard_id.is_some() {
+            sqlx::query!("DELETE FROM starboard WHERE message_id = $1", message_id)
+                .execute(&state.database)
+                .await?;
+
+            starboard_channel
+                .delete_messages(
+                    &ctx.http,
+                    vec![MessageId::new(starboard.starboard_id.unwrap() as u64)],
+                )
+                .await?
+        }
+
+        return Ok(());
+    }
 
     // Hardcoded star threshold for now, but it
     // should be configurable eventually
-    /*if starboard.starboard_id.is_some() && starboard.stars < 3 {
-        let starboard_message = starboard_channel
-            .message(
-                &ctx.http,
-                MessageId::new(starboard.starboard_id.unwrap() as u64),
-            )
-            .await?;
-
-        // Delete the message since it's below the threshold;
-        starboard_message.delete(&ctx.http).await?;
-
-        // then remove it from database too.
-        sqlx::query!(
-            "UPDATE starboard SET starboard_id = NULL WHERE message_id = $1",
-            starboard.message_id
-        )
-        .execute(&state.database)
-        .await?;
-    } else*/
     if starboard.starboard_id.is_none() {
         let new_message = starboard_channel
             .send_message(&ctx.http, create_message(message, &starboard))
@@ -197,7 +190,7 @@ pub async fn handle_reaction(
             .edit(
                 &ctx.http,
                 EditMessage::new().content(format!(
-                    "**{}**🌟{}",
+                    "**{}**🌟『{}』",
                     starboard.stars,
                     message.channel_id.mention()
                 )),
