@@ -142,7 +142,6 @@ pub async fn handle_reaction(
     let guild_channels = reaction.guild_id.unwrap().channels(&ctx.http).await?;
 
     let starboard_channel = guild_channels
-        //.get_key_value(&ChannelId::new(430532424280178688)) // #private-testing
         .get(&ChannelId::new(794949887028232192)) // #starboard
         .unwrap();
 
@@ -158,7 +157,7 @@ pub async fn handle_reaction(
                     &ctx.http,
                     vec![MessageId::new(starboard.starboard_id.unwrap() as u64)],
                 )
-                .await?
+                .await?;
         }
 
         return Ok(());
@@ -197,14 +196,6 @@ pub async fn handle_reaction(
             )
             .await?;
     }
-
-    sqlx::query!(
-        "UPDATE starboard SET stars = $1 WHERE message_id = $2",
-        starboard.stars,
-        starboard.message_id
-    )
-    .execute(&state.database)
-    .await?;
 
     Ok(())
 }
