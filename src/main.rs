@@ -8,6 +8,9 @@ mod database;
 mod framework;
 mod state;
 
+#[cfg(test)]
+mod tests;
+
 use poise::serenity_prelude as serenity;
 use state::State;
 

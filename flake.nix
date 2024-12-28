@@ -20,6 +20,12 @@
       in
       {
         defaultPackage = naersk-lib.buildPackage ./.;
+
+        packages.test = naersk-lib.buildPackage {
+          src = ./.;
+          mode = "test";
+        };
+
         devShell =
           with pkgs;
           mkShell {
