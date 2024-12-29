@@ -5,23 +5,12 @@ use poise::serenity_prelude::{
 
 use crate::{state::State, Error};
 
-struct Starboard {
-    /// The ID of the original message being starboarded.
-    message_id: i64,
-    /// The ID of the message in the starboard channel.
-    starboard_id: Option<i64>,
-    /// How many stars the message has.
-    stars: i32,
-}
-
 /// Creates the template message for a new starboard entry in the server.
 /// It only returns the builder required to pass as an argument to `<GuildChannel>.send_message`.
-fn create_message(original_message: Message, starboard: &Starboard) -> CreateMessage {
-    let image = if !original_message.attachments.is_empty() {
-        &original_message.attachments.first().unwrap().url
-    } else if !original_message.embeds.is_empty() {
-        let embed = &original_message.embeds.first().unwrap();
-
+fn create_message(original_message: Message, stars: i32) -> CreateMessage {
+    let image = if let Some(attachment) = original_message.attachments.first() {
+        &attachment.url
+    } else if let Some(embed) = original_message.embeds.first() {
         if let Some(image) = &embed.image {
             &image.url
         } else if let Some(image) = &embed.thumbnail {
@@ -49,7 +38,7 @@ fn create_message(original_message: Message, starboard: &Starboard) -> CreateMes
 
     CreateMessage::new().embed(embed).content(format!(
         "**{}**🌟『{}』",
-        starboard.stars,
+        stars,
         original_message.channel_id.mention()
     ))
 }
@@ -59,12 +48,12 @@ pub async fn handle_reaction(
     state: &State,
     reaction: &Reaction,
 ) -> Result<(), Error> {
-    let user_from_reaction = reaction.user(&ctx.http).await?;
-
     // If `None` it means that we are not receiving from a Guild.
     if reaction.guild_id.is_none() {
         return Ok(());
     }
+
+    let user_from_reaction = reaction.user(&ctx.http).await?;
 
     // We don't care about bot's reactions.
     if user_from_reaction.bot {
@@ -92,13 +81,13 @@ pub async fn handle_reaction(
     // The UserID of each user that has reacted with a valid reaction.
     let mut userids: Vec<UserId> = Vec::new();
 
-    for reac in message.reactions.clone() {
+    for reac in &message.reactions {
         if valid_emotes
             .iter()
             .any(|e| *e == reac.reaction_type.to_string())
         {
             let mut users: Vec<UserId> = reaction
-                .users(&ctx.http, reac.reaction_type, None, None::<UserId>)
+                .users(&ctx.http, reac.reaction_type.clone(), None, None::<UserId>)
                 .await?
                 .iter()
                 .filter_map(|user| {
@@ -122,41 +111,27 @@ pub async fn handle_reaction(
     // Get the message ID and turn it onto a BIGINT equivalent for the query.
     let message_id: i64 = message.id.into();
 
-    sqlx::query!(
+    let starboard = sqlx::query!(
         "INSERT INTO starboard AS sb (message_id, stars) VALUES ($1, $2)
-        ON CONFLICT (message_id) DO UPDATE SET stars = $2 WHERE sb.message_id = $1;",
+        ON CONFLICT (message_id) DO UPDATE SET stars = $2 WHERE sb.message_id = $1
+        RETURNING starboard_id, stars",
         message_id,
         userids.len() as i32
-    )
-    .execute(&state.database)
-    .await?;
-
-    let starboard = sqlx::query_as!(
-        Starboard,
-        "SELECT * FROM starboard WHERE message_id = $1",
-        message_id
     )
     .fetch_one(&state.database)
     .await?;
 
-    let guild_channels = reaction.guild_id.unwrap().channels(&ctx.http).await?;
-
-    let starboard_channel = guild_channels
-        .get(&ChannelId::new(794949887028232192)) // #starboard
-        .unwrap();
+    let starboard_channel = ChannelId::new(794949887028232192); // #starboard
 
     if userids.len() < 3 {
         // If there is an ID for it, a message was created
-        if starboard.starboard_id.is_some() {
+        if let Some(starboard_id) = starboard.starboard_id {
             sqlx::query!("DELETE FROM starboard WHERE message_id = $1", message_id)
                 .execute(&state.database)
                 .await?;
 
             starboard_channel
-                .delete_messages(
-                    &ctx.http,
-                    vec![MessageId::new(starboard.starboard_id.unwrap() as u64)],
-                )
+                .delete_message(&ctx.http, MessageId::new(starboard_id as u64))
                 .await?;
         }
 
@@ -165,36 +140,33 @@ pub async fn handle_reaction(
 
     // Hardcoded star threshold for now, but it
     // should be configurable eventually
-    if starboard.starboard_id.is_none() {
-        let new_message = starboard_channel
-            .send_message(&ctx.http, create_message(message, &starboard))
-            .await?;
+    match starboard.starboard_id {
+        None => {
+            let new_message = starboard_channel
+                .send_message(&ctx.http, create_message(message, starboard.stars))
+                .await?;
 
-        sqlx::query!(
-            "UPDATE starboard SET starboard_id = $1 WHERE message_id = $2",
-            i64::from(new_message.id),
-            starboard.message_id
-        )
-        .execute(&state.database)
-        .await?;
-    } else {
-        let mut starboard_message = starboard_channel
-            .message(
-                &ctx.http,
-                MessageId::new(starboard.starboard_id.unwrap() as u64),
+            sqlx::query!(
+                "UPDATE starboard SET starboard_id = $1 WHERE message_id = $2",
+                i64::from(new_message.id),
+                message_id
             )
+            .execute(&state.database)
             .await?;
-
-        starboard_message
-            .edit(
-                &ctx.http,
-                EditMessage::new().content(format!(
-                    "**{}**🌟『{}』",
-                    starboard.stars,
-                    message.channel_id.mention()
-                )),
-            )
-            .await?;
+        }
+        Some(starboard_id) => {
+            starboard_channel
+                .edit_message(
+                    &ctx.http,
+                    MessageId::new(starboard_id as u64),
+                    EditMessage::new().content(format!(
+                        "**{}**🌟『{}』",
+                        starboard.stars,
+                        message.channel_id.mention()
+                    )),
+                )
+                .await?;
+        }
     }
 
     Ok(())
