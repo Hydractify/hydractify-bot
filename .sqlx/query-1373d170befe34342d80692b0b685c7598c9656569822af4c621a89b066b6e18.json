@@ -1,34 +1,29 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM starboard WHERE message_id = $1",
+  "query": "INSERT INTO starboard AS sb (message_id, stars) VALUES ($1, $2)\n        ON CONFLICT (message_id) DO UPDATE SET stars = $2 WHERE sb.message_id = $1\n        RETURNING starboard_id, stars",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "message_id",
-        "type_info": "Int8"
-      },
-      {
-        "ordinal": 1,
         "name": "starboard_id",
         "type_info": "Int8"
       },
       {
-        "ordinal": 2,
+        "ordinal": 1,
         "name": "stars",
         "type_info": "Int4"
       }
     ],
     "parameters": {
       "Left": [
-        "Int8"
+        "Int8",
+        "Int4"
       ]
     },
     "nullable": [
-      false,
       true,
       false
     ]
   },
-  "hash": "be09baada15360bd55dc466763cc62292e77b92b044241b0778b34134fbd52e5"
+  "hash": "1373d170befe34342d80692b0b685c7598c9656569822af4c621a89b066b6e18"
 }
