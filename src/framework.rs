@@ -27,7 +27,7 @@ async fn listener(
     }
 }
 
-pub fn build_framework() -> poise::Framework<State, crate::Error> {
+pub fn build_framework(config: crate::Configuration) -> poise::Framework<State, crate::Error> {
     poise::Framework::builder()
         .options(poise::FrameworkOptions {
             commands: vec![commands::test::test()],
@@ -39,7 +39,7 @@ pub fn build_framework() -> poise::Framework<State, crate::Error> {
         .setup(|ctx, _ready, framework| {
             Box::pin(async move {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
-                Ok(State::load().await)
+                Ok(State::load(config).await)
             })
         })
         .build()

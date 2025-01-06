@@ -1,0 +1,3 @@
+database_url = "postgres://user:password@localhost/database"
+discord_token = "ABCDEFGHIJK.LMNOPQRSTUVXWYZ"
+star_threshold = 3

@@ -123,7 +123,7 @@ pub async fn handle_reaction(
 
     let starboard_channel = ChannelId::new(794949887028232192); // #starboard
 
-    if userids.len() < 3 {
+    if userids.len() < state.star_threshold {
         // If there is an ID for it, a message was created
         if let Some(starboard_id) = starboard.starboard_id {
             sqlx::query!("DELETE FROM starboard WHERE message_id = $1", message_id)
