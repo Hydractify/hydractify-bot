@@ -1,5 +1,5 @@
 mod commands {
-    pub mod test;
+    pub mod configuration;
 }
 mod listeners {
     pub mod starboard;

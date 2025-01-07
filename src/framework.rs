@@ -30,7 +30,7 @@ async fn listener(
 pub fn build_framework(config: crate::Configuration) -> poise::Framework<State, crate::Error> {
     poise::Framework::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![commands::test::test()],
+            commands: vec![commands::configuration::configuration()],
             event_handler: |ctx, event, framework, state| {
                 Box::pin(listener(ctx, event, framework, state))
             },

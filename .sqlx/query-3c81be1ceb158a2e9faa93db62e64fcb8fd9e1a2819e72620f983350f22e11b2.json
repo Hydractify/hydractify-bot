@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO server_configuration AS sc (guild_id, starboard_channel) VALUES ($1, $2)\n        ON CONFLICT (guild_id) DO UPDATE SET starboard_channel = $2 WHERE sc.guild_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3c81be1ceb158a2e9faa93db62e64fcb8fd9e1a2819e72620f983350f22e11b2"
+}

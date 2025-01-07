@@ -78,6 +78,18 @@ pub async fn handle_reaction(
         return Ok(());
     }
 
+    let guild_id: i64 = reaction.guild_id.unwrap().into();
+    let server_configuration = sqlx::query!(
+        "SELECT starboard_channel FROM server_configuration WHERE guild_id = $1",
+        guild_id
+    )
+    .fetch_one(&state.database)
+    .await?;
+
+    if let None = server_configuration.starboard_channel {
+        return Ok(());
+    }
+
     // The UserID of each user that has reacted with a valid reaction.
     let mut userids: Vec<UserId> = Vec::new();
 
@@ -121,7 +133,7 @@ pub async fn handle_reaction(
     .fetch_one(&state.database)
     .await?;
 
-    let starboard_channel = ChannelId::new(794949887028232192); // #starboard
+    let starboard_channel = ChannelId::new(server_configuration.starboard_channel.unwrap() as u64);
 
     if userids.len() < state.star_threshold {
         // If there is an ID for it, a message was created
