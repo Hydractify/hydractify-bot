@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS starboard (
   -- The message that got starred.
-  message_id    bigint  NOT NULL,
+  message_id    bigint  PRIMARY KEY,
 
   -- The starboard message.
   starboard_id  bigint,
