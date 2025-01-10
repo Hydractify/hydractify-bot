@@ -14,6 +14,16 @@ pub async fn starboard(
         return Ok(());
     }
 
+    if let Some(member) = ctx.author_member().await {
+        if !member.permissions.unwrap().manage_channels() {
+            ctx.say("You have insufficient permissions to run this command.")
+                .await?;
+            return Ok(());
+        }
+    } else {
+        return Ok(());
+    }
+
     let guild_id: i64 = ctx.guild_id().unwrap().into();
     let channel_id: i64 = channel.id().into();
 
