@@ -1,5 +1,6 @@
 mod commands {
     pub mod configuration;
+    pub mod unturned;
 }
 mod listeners {
     pub mod starboard;
